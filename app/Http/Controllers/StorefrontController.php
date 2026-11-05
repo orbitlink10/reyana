@@ -22,7 +22,7 @@ class StorefrontController extends Controller
             default => str_replace(' | Reyana', '', $data['title'] ?? 'Your shopping details').' at Reyana.',
         };
 
-        return response()->view('storefront.'.$view, $data + ['collections' => FashionCatalog::COLLECTIONS])
+        return response()->view('storefront.'.$view, $data + ['collections' => FashionCatalog::collections()])
             ->header('X-Robots-Tag', config('reyana.preview') || ! config('reyana.indexable') ? 'noindex, nofollow' : 'index, follow');
     }
 
@@ -33,9 +33,10 @@ class StorefrontController extends Controller
 
     public function collection(Request $request, ?string $collection = null)
     {
-        abort_if($collection && ! isset(FashionCatalog::COLLECTIONS[$collection]), 404);
+        abort_if($collection && ! isset(FashionCatalog::collections()[$collection]), 404);
+        $categoryData = $collection && Schema::hasTable('fashion_categories') ? \App\Models\FashionCategory::where('slug', $collection)->first() : null;
         $request->validate(['q' => 'nullable|string|max:120', 'size' => 'nullable|string|max:30', 'color' => 'nullable|string|max:40', 'min' => 'nullable|integer|min:0', 'max' => 'nullable|integer|min:0', 'sort' => 'nullable|in:newest,price-asc,price-desc,name', 'page' => 'nullable|integer|min:1|max:10000']);
-        $all = $this->catalog->products()->filter(fn ($p) => ! $collection || $collection === 'new-arrivals' || $p['collection'] === $collection);
+        $all = $this->catalog->products()->filter(fn ($p) => ! $collection || $collection === 'new-arrivals' || $p['collection'] === $collection || ($p['subcategory'] ?? null) === $collection);
         $options = $all->flatMap(fn ($p) => $p['variants']);
         $filtered = $all->filter(function ($p) use ($request) {
             if ($request->filled('q') && ! str_contains(mb_strtolower($p['name']), mb_strtolower($request->q))) {
@@ -56,14 +57,14 @@ class StorefrontController extends Controller
         $products = new LengthAwarePaginator($filtered->values()->forPage($request->integer('page', 1), 8), $filtered->count(), 8, $request->integer('page', 1), ['path' => $request->url(), 'query' => $request->query()]);
         abort_if($products->currentPage() > $products->lastPage(), 404);
 
-        return $this->render('collection', ['products' => $products, 'collection' => $collection, 'sizes' => $options->pluck('size')->unique(), 'colors' => $options->pluck('color')->unique(), 'title' => ($collection ? FashionCatalog::COLLECTIONS[$collection] : ($request->filled('q') ? 'Search results' : 'Shop all')).' | Reyana']);
+        return $this->render('collection', ['categoryData' => $categoryData, 'description' => $categoryData?->meta_description ?: null, 'products' => $products, 'collection' => $collection, 'sizes' => $options->pluck('size')->unique(), 'colors' => $options->pluck('color')->unique(), 'title' => ($collection ? ($categoryData?->meta_title ?: FashionCatalog::collections()[$collection]) : ($request->filled('q') ? 'Search results' : 'Shop all')).' | Reyana']);
     }
 
     public function product(string $slug)
     {
         $p = $this->catalog->product($slug);
 
-        return $this->render('product', ['product' => $p, 'related' => $this->catalog->products()->where('collection', $p['collection'])->where('slug', '!=', $slug)->take(4), 'title' => $p['name'].' | Reyana']);
+        return $this->render('product', ['description' => $p['meta_description'] ?? null, 'product' => $p, 'related' => $this->catalog->products()->where('collection', $p['collection'])->where('slug', '!=', $slug)->take(4), 'title' => $p['name'].' | Reyana']);
     }
 
     public function cart()

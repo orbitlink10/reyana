@@ -10,6 +10,18 @@ class FashionCatalog
 {
     public const COLLECTIONS = ['new-arrivals' => 'New Arrivals', 'dresses' => 'Dresses', 'tops' => 'Tops', 'bottoms' => 'Bottoms', 'matching-sets' => 'Matching Sets', 'outerwear' => 'Outerwear', 'sale' => 'Sale'];
 
+    public static function categories(): array
+    {
+        return Schema::hasTable('fashion_categories')
+            ? \App\Models\FashionCategory::orderBy('name')->pluck('name', 'slug')->all()
+            : array_diff_key(self::COLLECTIONS, array_flip(['new-arrivals', 'sale']));
+    }
+
+    public static function collections(): array
+    {
+        return ['new-arrivals' => 'New Arrivals'] + self::categories() + ['sale' => 'Sale'];
+    }
+
     public function products(): Collection
     {
         if (config('reyana.preview')) {
@@ -19,9 +31,9 @@ class FashionCatalog
             return collect();
         }
 
-        return FashionProduct::with('variants')->where('active', true)->latest()->get()->map(function ($p) {
+        return FashionProduct::with(['variants', 'subcategory'])->where('active', true)->latest()->get()->map(function ($p) {
             return ['id' => (string) $p->id, 'slug' => $p->slug, 'name' => $p->name, 'collection' => $p->collection,
-                'price' => $p->price, 'description' => $p->description, 'care' => $p->care,
+                'price' => $p->price, 'marked_price' => $p->marked_price, 'subcategory' => $p->subcategory?->slug, 'meta_description' => $p->meta_description, 'description_html' => $p->description_html, 'description' => $p->description, 'care' => $p->care,
                 'image' => $p->image ?: '/reyana/placeholder.svg', 'alt' => $p->name,
                 'demo' => false, 'variants' => $p->variants->map(fn ($v) => ['id' => (string) $v->id, 'size' => $v->size, 'color' => $v->color, 'stock' => $v->stock])->all()];
         });

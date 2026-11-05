@@ -7,7 +7,12 @@ use Illuminate\Support\Facades\Storage;
 
 Route::middleware(['auth', 'role:admin,dispatcher'])->group(function () {
     Route::get('/admin/fashion', [FashionController::class, 'index'])->name('admin.products.index');
-    Route::get('/admin/categories', [FashionController::class, 'categories'])->name('admin.categories.index');
+    Route::resource('/admin/categories', \App\Http\Controllers\Admin\FashionCategoryController::class)->except(['show'])->names('admin.categories');
+    Route::get('/admin/products', [FashionController::class, 'products'])->name('admin.products.list');
+    Route::get('/admin/products/create', [FashionController::class, 'index'])->name('admin.products.create');
+    Route::get('/admin/products/{product}/edit', [FashionController::class, 'edit'])->name('admin.products.edit');
+    Route::get('/admin/products/{product}/preview', [FashionController::class, 'preview'])->name('admin.products.preview');
+    Route::delete('/admin/products/{product}', [FashionController::class, 'destroy'])->name('admin.products.destroy');
     Route::post('/admin/fashion', [FashionController::class, 'save']);
 });
 

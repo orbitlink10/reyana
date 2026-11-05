@@ -4,7 +4,7 @@
 @section('dashboard-subtitle', 'Track bookings, providers, payments and service activity.')
 @section('dashboard-actions')
 <div class="d-flex gap-2 flex-wrap">
-    <a class="btn btn-outline-primary" href="{{ route('admin.products.index') }}">Products</a>
+    <a class="btn btn-outline-primary" href="{{ route('admin.products.list') }}">Products</a>
     <a class="btn btn-outline-primary" href="{{ route('admin.categories.index') }}">Categories</a>
     <a class="btn btn-outline-primary" href="{{ route('admin.services.index') }}">Services</a>
     <a class="btn btn-outline-primary" href="{{ route('admin.providers.index') }}">Providers</a>

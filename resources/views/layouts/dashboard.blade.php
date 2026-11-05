@@ -88,13 +88,16 @@
                     <span class="sidebar-icon"><i class="bi bi-tools"></i></span>
                     <span>Services</span>
                 </a>
-                <a class="sidebar-link {{ request()->routeIs('admin.products.*') ? 'active' : '' }}" href="{{ route('admin.products.index') }}">
+                <a class="sidebar-link {{ request()->routeIs('admin.products.*') ? 'active' : '' }}" href="{{ route('admin.products.list') }}">
                     <span class="sidebar-icon"><i class="bi bi-bag"></i></span>
                     <span>Products</span>
                 </a>
-                <a class="sidebar-link {{ request()->routeIs('admin.categories.*') ? 'active' : '' }}" href="{{ route('admin.categories.index') }}">
+                <a class="sidebar-link {{ request()->routeIs('admin.categories.*') && !request()->boolean('subcategories') ? 'active' : '' }}" href="{{ route('admin.categories.index') }}">
                     <span class="sidebar-icon"><i class="bi bi-grid-3x3-gap"></i></span>
                     <span>Categories</span>
+                </a>
+                <a class="sidebar-link {{ request()->routeIs('admin.categories.*') && request()->boolean('subcategories') ? 'active' : '' }}" href="{{ route('admin.categories.index', ['subcategories' => 1]) }}">
+                    <span class="sidebar-icon"><i class="bi bi-tag"></i></span><span>Sub Categories</span>
                 </a>
                 <a class="sidebar-link {{ request()->routeIs('bookings.*') ? 'active' : '' }}" href="{{ route('bookings.index') }}">
                     <span class="sidebar-icon"><i class="bi bi-cart3"></i></span>

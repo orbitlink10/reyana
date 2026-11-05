@@ -14,4 +14,9 @@ class FashionProduct extends Model
     {
         return $this->hasMany(FashionVariant::class);
     }
+
+    public function subcategory()
+    {
+        return $this->belongsTo(FashionCategory::class, 'subcategory_id');
+    }
 }

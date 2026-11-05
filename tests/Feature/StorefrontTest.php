@@ -12,6 +12,56 @@ class StorefrontTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_product_form_saves_quantity_pricing_subcategory_and_rich_description(): void
+    {
+        $role = Role::create(['name' => 'admin', 'label' => 'Admin']);
+        $this->actingAs(User::factory()->create(['role_id' => $role->id]));
+        $parent = \App\Models\FashionCategory::where('slug', 'dresses')->firstOrFail();
+        $child = \App\Models\FashionCategory::create(['name' => 'Evening Dresses', 'slug' => 'evening-dresses', 'parent_id' => $parent->id]);
+        $this->get('/admin/products/create')->assertOk()->assertSee('Marked Price (KES)')->assertSee('Subcategory')->assertSee('Meta Description');
+        $data = ['name' => 'Silk Dress', 'price' => 4000, 'marked_price' => 5000, 'quantity' => 7, 'collection' => 'dresses', 'subcategory_id' => $child->id, 'meta_description' => 'Shop a silk evening dress.', 'description' => '<p>A <strong>silk</strong> dress.</p><script>alert(1)</script>', 'active' => 1];
+        $this->post('/admin/fashion', $data)->assertRedirect('/admin/products');
+        $product = FashionProduct::where('slug', 'silk-dress')->firstOrFail();
+        $this->assertSame(5000, $product->marked_price);
+        $this->assertSame($child->id, $product->subcategory_id);
+        $this->assertSame(7, $product->variants()->sole()->stock);
+        $this->assertStringContainsString('<strong>silk</strong>', $product->description_html);
+        $this->assertStringNotContainsString('script', $product->description_html);
+        config(['reyana.preview' => false]);
+        $this->get('/products/silk-dress')->assertOk()->assertSee('<strong>silk</strong>', false)->assertSee('Shop a silk evening dress.');
+        $this->get('/collections/evening-dresses')->assertOk()->assertSee('Silk Dress');
+        $this->get('/admin/products/'.$product->id.'/edit')->assertOk()->assertSee('5000')->assertSee('Shop a silk evening dress.');
+        $this->post('/admin/fashion', array_merge($data, ['id' => $product->id, 'quantity' => 3]))->assertRedirect('/admin/products');
+        $this->assertSame(3, $product->variants()->sole()->stock);
+        $this->post('/admin/fashion', array_merge($data, ['name' => 'Invalid', 'marked_price' => 3000]))->assertSessionHasErrors('marked_price');
+        $this->post('/admin/fashion', array_merge($data, ['name' => 'Invalid', 'collection' => 'tops']))->assertSessionHasErrors('subcategory_id');
+    }
+
+    public function test_categories_can_be_managed_and_used_for_products(): void
+    {
+        $role = Role::create(['name' => 'admin', 'label' => 'Admin']);
+        $this->actingAs(User::factory()->create(['role_id' => $role->id]));
+        $this->get('/admin/categories/create')->assertOk()->assertSee('Parent Category');
+        $this->post('/admin/categories', ['name' => 'Evening Wear', 'description' => '<p><strong>Evening</strong></p><script>alert(1)</script>', 'meta_title' => 'Evening styles'])->assertRedirect('/admin/categories');
+        $category = \App\Models\FashionCategory::where('slug', 'evening-wear')->firstOrFail();
+        $this->assertStringContainsString('<strong>Evening</strong>', $category->description);
+        $this->assertStringNotContainsString('script', $category->description);
+        $this->get('/collections/evening-wear')->assertOk()->assertSee('Evening styles')->assertSee('<strong>Evening</strong>', false);
+        $this->get('/admin/categories/'.$category->id.'/edit')->assertOk();
+        $this->post('/admin/fashion', ['name' => 'Evening Dress', 'slug' => 'evening-dress', 'collection' => 'evening-wear', 'price' => 5000, 'description' => 'An evening dress.', 'variants' => [['size' => 'S', 'color' => 'Black', 'stock' => 2]]])->assertRedirect('/admin/products');
+        $product = FashionProduct::where('slug', 'evening-dress')->firstOrFail();
+        $this->get('/admin/products?q=Evening')->assertOk()->assertSee('Evening Dress');
+        $this->get('/admin/products/'.$product->id.'/edit')->assertOk()->assertSee('evening-dress');
+        $this->get('/admin/products/'.$product->id.'/preview')->assertOk()->assertSee('Draft');
+        $this->put('/admin/categories/'.$category->id, ['name' => 'Occasion Wear', 'slug' => 'occasion-wear'])->assertRedirect('/admin/categories');
+        $this->assertSame('occasion-wear', $product->fresh()->collection);
+        $this->delete('/admin/categories/'.$category->id)->assertSessionHasErrors('category');
+        $this->put('/admin/categories/'.$category->id, ['name' => 'Occasion Wear', 'parent_id' => $category->id])->assertSessionHasErrors('parent_id');
+        $this->delete('/admin/products/'.$product->id)->assertRedirect('/admin/products');
+        $this->delete('/admin/categories/'.$category->id)->assertRedirect('/admin/categories');
+        $this->assertDatabaseMissing('fashion_categories', ['id' => $category->id]);
+    }
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -99,8 +149,8 @@ class StorefrontTest extends TestCase
         $admin = User::factory()->create(['role_id' => $role->id]);
         $this->actingAs($admin)->get('/dashboard')->assertOk()->assertSee('dashboard-sidebar')->assertDontSee('reyana/store.css');
         $this->get('/admin/fashion')->assertOk()->assertSee('dashboard-sidebar');
-        $this->get('/admin/categories')->assertOk()->assertSee('Dresses')->assertSee('/admin/fashion?collection=dresses', false);
-        $this->get('/admin/fashion?collection=dresses')->assertOk()->assertSee('Showing Dresses.');
+        $this->get('/admin/categories')->assertOk()->assertSee('Dresses')->assertSee('Create New Category')->assertSee('Update');
+        $this->get('/admin/fashion?collection=dresses')->assertOk()->assertSee('Add Product');
         $this->get('/admin/services')->assertOk();
         $this->get('/admin/providers')->assertOk();
         $this->get('/bookings')->assertOk();
