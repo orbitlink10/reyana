@@ -6,7 +6,8 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
 
 Route::middleware(['auth', 'role:admin,dispatcher'])->group(function () {
-    Route::get('/admin/fashion', [FashionController::class, 'index']);
+    Route::get('/admin/fashion', [FashionController::class, 'index'])->name('admin.products.index');
+    Route::get('/admin/categories', [FashionController::class, 'categories'])->name('admin.categories.index');
     Route::post('/admin/fashion', [FashionController::class, 'save']);
 });
 

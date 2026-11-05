@@ -11,9 +11,25 @@ use Illuminate\Validation\Rule;
 
 class FashionController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        return view('admin.fashion', ['products' => FashionProduct::with('variants')->latest()->get(), 'collections' => array_diff_key(FashionCatalog::COLLECTIONS, array_flip(['new-arrivals', 'sale']))]);
+        $collections = array_diff_key(FashionCatalog::COLLECTIONS, array_flip(['new-arrivals', 'sale']));
+        $data = $request->validate(['collection' => ['nullable', Rule::in(array_keys($collections))]]);
+        $collection = $data['collection'] ?? null;
+
+        return view('admin.fashion', [
+            'products' => FashionProduct::with('variants')->when($collection, fn ($query) => $query->where('collection', $collection))->latest()->get(),
+            'collections' => $collections,
+            'selectedCollection' => $collection,
+        ]);
+    }
+
+    public function categories()
+    {
+        return view('admin.categories', [
+            'collections' => array_diff_key(FashionCatalog::COLLECTIONS, array_flip(['new-arrivals', 'sale'])),
+            'counts' => FashionProduct::selectRaw('collection, count(*) as total')->groupBy('collection')->pluck('total', 'collection'),
+        ]);
     }
 
     public function save(Request $request)

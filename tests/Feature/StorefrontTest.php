@@ -91,12 +91,16 @@ class StorefrontTest extends TestCase
     {
         $this->get('/dashboard')->assertRedirect('/login');
         $this->get('/admin/fashion')->assertRedirect('/login');
+        $this->get('/admin/categories')->assertRedirect('/login');
         $customer = User::factory()->create();
         $this->actingAs($customer)->get('/admin/fashion')->assertForbidden();
+        $this->get('/admin/categories')->assertForbidden();
         $role = Role::create(['name' => 'admin', 'label' => 'Admin']);
         $admin = User::factory()->create(['role_id' => $role->id]);
         $this->actingAs($admin)->get('/dashboard')->assertOk()->assertSee('dashboard-sidebar')->assertDontSee('reyana/store.css');
         $this->get('/admin/fashion')->assertOk()->assertSee('dashboard-sidebar');
+        $this->get('/admin/categories')->assertOk()->assertSee('Dresses')->assertSee('/admin/fashion?collection=dresses', false);
+        $this->get('/admin/fashion?collection=dresses')->assertOk()->assertSee('Showing Dresses.');
         $this->get('/admin/services')->assertOk();
         $this->get('/admin/providers')->assertOk();
         $this->get('/bookings')->assertOk();
